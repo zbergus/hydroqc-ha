@@ -56,6 +56,7 @@ from ..const import (
     DOMAIN,
 )
 from ..session import async_save_session as save_session_state, stage_pending_session
+from ..hydroqc_patches import apply_patches
 from .helpers import SECTOR_MAPPING, fetch_available_sectors, fetch_offers_for_sector
 from .options import HydroQcOptionsFlow
 
@@ -66,6 +67,8 @@ _LOGGER = logging.getLogger(__name__)
 LOGIN_ORIGIN_USER = "user"
 LOGIN_ORIGIN_RECONFIGURE = "reconfigure"
 LOGIN_ORIGIN_REAUTH = "reauth"
+
+apply_patches()
 
 
 @callback
