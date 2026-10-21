@@ -38,6 +38,14 @@
 
 ---
 
+## [0.8.0-custom] - 2026-11-03
+
+### Added
+- Rebased on upstream v0.8.0.
+- External cost statistics (`hydroqc:<contract>_hourly_cost`) derived from hourly kWh × average CAD/kWh, so the Energy dashboard can track grid cost with external consumption stats.
+- Re-login retry and 60m cooldown on HTTP 403 to soften portal maintenance outages.
+- Base64url padding decode fix for JWT ID tokens.
+
 ## [0.8.0] - 2026-11-02
 
 ### Ajouté
