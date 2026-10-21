@@ -10,6 +10,11 @@
 
 ---
 
+## [0.7.2] - 2026-10-21
+
+### Fixed
+- HACS release zip layout: files at zip root (matching upstream), so the integration extracts to `custom_components/hydroqc/` instead of a nested folder HA cannot load.
+
 ## [0.7.1] - 2026-10-21
 
 Stability fork release (`zbergus/hydroqc-ha`). See [STABILITY.md](STABILITY.md).
