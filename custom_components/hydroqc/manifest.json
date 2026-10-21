@@ -4,10 +4,10 @@
   "after_dependencies": ["recorder", "calendar"],
   "codeowners": ["@mdallaire"],
   "config_flow": true,
-  "documentation": "https://github.com/hydroqc/hydroqc-ha",
+  "documentation": "https://github.com/zbergus/hydroqc-ha/blob/main/STABILITY.md",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/hydroqc/hydroqc-ha/issues",
+  "issue_tracker": "https://github.com/zbergus/hydroqc-ha/issues",
   "requirements": ["Hydro-Quebec-API-Wrapper==4.2.6"],
-  "version": "0.7.0"
+  "version": "0.7.1"
 }

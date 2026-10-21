@@ -2,15 +2,30 @@
 
 ### Ajouté
 
-- **Reconfiguration du mode Portail** : l'action « Reconfigurer » d'une entrée permet de changer d'identifiants ou de contrat (par exemple quand Hydro-Québec attribue un nouveau numéro de contrat). L'appareil et les entités existantes sont transférés au nouveau contrat, leurs `entity_id` sont conservés, et le nom du contrat, qui détermine les statistiques de consommation, ne change pas.
-
 ### Modifié
+
+### Corrigé
+
+### Retiré
+
+---
+
+## [0.7.1] - 2026-10-21
+
+Stability fork release (`zbergus/hydroqc-ha`). See [STABILITY.md](STABILITY.md).
+
+### Ajouté
+
+- **Reconfiguration du mode Portail** : l'action « Reconfigurer » d'une entrée permet de changer d'identifiants ou de contrat (par exemple quand Hydro-Québec attribue un nouveau numéro de contrat). L'appareil et les entités existantes sont transférés au nouveau contrat, leurs `entity_id` sont conservés, et le nom du contrat, qui détermine les statistiques de consommation, ne change pas.
+- Brand assets locaux pour Home Assistant 2026.3+
+- Guide d'automatisation pré-pointe via calendrier (`docs/preheat_automation_recipe.md`)
 
 ### Corrigé
 
 - Connexion en mode portail : « Échec de connexion à Hydro-Québec » après une connexion réussie pour certains comptes, notamment avec un nom accentué. Le jeton d'identité est maintenant décodé en base64url, comme le prévoit la norme JWT (correctif temporaire de Hydro-Quebec-API-Wrapper 4.2.6)
 - Erreurs HTTP 403 sur `maj-session` : une seule nouvelle tentative après re-login (comportement de session web inchangé côté lib), puis cooldown de 60 minutes côté coordinateur pour éviter les boucles `ConfigEntryNotReady` qui martèlent le portail pendant les maintenances (voir documentation HydroQC Troubleshooting)
 - **Nouveau contrat sans portrait de consommation** : Hydro-Québec répond HTTP 400 aux périodes de consommation pendant environ 10 jours après le début d'un contrat. Pour un contrat de moins de 30 jours, cette réponse ne fait plus échouer la mise à jour : un seul avertissement est journalisé, le solde et les pannes continuent d'être mis à jour, les capteurs de facturation restent inconnus et les périodes sont redemandées une fois par heure. La synchronisation de la consommation horaire, refusée elle aussi, attend que les périodes soient disponibles.
+- Métadonnées de statistiques : retrait de `unit_class` invalide
 
 ### Retiré
 

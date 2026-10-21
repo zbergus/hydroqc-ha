@@ -68,11 +68,15 @@ L'intégration calendrier offre **plusieurs niveaux de protection** pour vos aut
 
 ## Installation rapide
 
-### Via HACS (Recommande)
+> **Stability fork:** this repository (`zbergus/hydroqc-ha`) packages upstream
+> `hydroqc-ha` plus open PR fixes and a `maj-session` 403 cooldown. Details:
+> [STABILITY.md](STABILITY.md).
+
+### Via HACS (Recommande) — this fork
 
 **Option 1 : Installation en un clic**
 
-[![Ajouter à HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hydroqc&repository=hydroqc-ha&category=integration)
+[![Ajouter à HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=zbergus&repository=hydroqc-ha&category=integration)
 
 Cliquez sur le badge ci-dessus, puis :
 1. Cliquez sur **"Télécharger"**
@@ -87,9 +91,10 @@ Cliquez sur le badge ci-dessus, puis :
 1. Ouvrez **HACS** dans Home Assistant
 2. Cliquez sur **Intégrations**
 3. Cliquez sur les **3 points** → **"Dépôts personnalisés"**
-4. Ajoutez : `https://github.com/hydroqc/hydroqc-ha` (catégorie: Intégration)
-5. Recherchez **"Hydro-Québec"** et cliquez sur **"Télécharger"**
-6. **Redémarrez Home Assistant**
+4. Ajoutez : `https://github.com/zbergus/hydroqc-ha` (catégorie: Intégration)
+5. Si le dépôt officiel `hydroqc/hydroqc-ha` est aussi présent, retirez-le pour éviter les conflits de version
+6. Recherchez **"Hydro-Québec"** et cliquez sur **"Télécharger"** (version **0.7.1**+)
+7. **Redémarrez Home Assistant**
 
 </details>
 
@@ -98,7 +103,7 @@ Cliquez sur le badge ci-dessus, puis :
 <details>
 <summary>Pour les utilisateurs avancés</summary>
 
-1. Téléchargez depuis [GitHub Releases](https://github.com/hydroqc/hydroqc-ha/releases)
+1. Téléchargez depuis [GitHub Releases](https://github.com/zbergus/hydroqc-ha/releases)
 2. Extrayez dans `custom_components/hydroqc`
 3. Redémarrez Home Assistant
 
