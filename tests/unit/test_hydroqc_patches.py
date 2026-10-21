@@ -75,5 +75,15 @@ def test_no_token_returns_none() -> None:
 def test_apply_patches_is_idempotent() -> None:
     apply_patches()
     first = HydroClient.get_token_data
+    first_session = HydroClient._create_web_session
     apply_patches()
     assert HydroClient.get_token_data is first
+    assert HydroClient._create_web_session is first_session
+
+
+def test_create_web_session_patch_is_applied() -> None:
+    """Ensure maj-session resilience patch is wired on HydroClient."""
+    from custom_components.hydroqc import hydroqc_patches
+
+    apply_patches()
+    assert HydroClient._create_web_session is hydroqc_patches._create_web_session_resilient

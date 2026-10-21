@@ -111,6 +111,13 @@ class HydroQcDataCoordinator(
         # Track portal availability status
         self._portal_available: bool | None = None
 
+        # After maj-session / portal 403, back off so HA ConfigEntryNotReady
+        # retries do not hammer Hydro-Québec (seen as hundreds of 403s/hour).
+        # 60 minutes matches hydroqc2mqtt's default sync_frequency and the
+        # portal maintenance guidance on https://hydroqc.ca/en/docs/troubleshooting/
+        self._portal_cooldown_until: datetime.datetime | None = None
+        self._portal_403_cooldown = datetime.timedelta(minutes=60)
+
         # Initialize webuser if in portal mode
         if self._auth_mode == AUTH_MODE_PORTAL:
             self._webuser = WebUser(
@@ -407,92 +414,141 @@ class HydroQcDataCoordinator(
             return data
 
         # Portal mode: fetch contract data
+        portal_soft_failed = False
         try:
-            # Check portal status before attempting updates
-            if self._webuser:
-                portal_available = await self._webuser.check_hq_portal_status()
-                self._portal_available = portal_available  # Track for sensor
-                if not portal_available:
-                    now = datetime.datetime.now(ZoneInfo("America/Toronto"))
-                    # Log warning once per hour to avoid spam
-                    if (
-                        self._portal_last_offline_log is None
-                        or (now - self._portal_last_offline_log).total_seconds() >= 3600
-                    ):
-                        _LOGGER.warning("[Portal] Hydro-Québec portal is offline, skipping update")
-                        self._portal_last_offline_log = now
-                    # Portal offline - if no OpenData fetched either, skip update
-                    if not data_fetched:
-                        _LOGGER.debug(
-                            "No data fetched (portal offline, no OpenData), skipping sensor update"
-                        )
-                        raise UpdateFailed("Portal offline and no new data")
-                    return data
+            now_portal = datetime.datetime.now(ZoneInfo("America/Toronto"))
+            if (
+                self._portal_cooldown_until is not None
+                and now_portal < self._portal_cooldown_until
+            ):
+                _LOGGER.debug(
+                    "[Portal] Skipping fetch; cooldown until %s",
+                    self._portal_cooldown_until.isoformat(),
+                )
+                portal_soft_failed = True
+            else:
+                # Check portal status before attempting updates
+                if self._webuser:
+                    portal_available = await self._webuser.check_hq_portal_status()
+                    self._portal_available = portal_available  # Track for sensor
+                    if not portal_available:
+                        now = datetime.datetime.now(ZoneInfo("America/Toronto"))
+                        # Log warning once per hour to avoid spam
+                        if (
+                            self._portal_last_offline_log is None
+                            or (now - self._portal_last_offline_log).total_seconds()
+                            >= 3600
+                        ):
+                            _LOGGER.warning(
+                                "[Portal] Hydro-Québec portal is offline, skipping update"
+                            )
+                            self._portal_last_offline_log = now
+                        # Portal offline - if no OpenData fetched either, skip update
+                        if not data_fetched:
+                            _LOGGER.debug(
+                                "No data fetched (portal offline, no OpenData), "
+                                "skipping sensor update"
+                            )
+                            raise UpdateFailed("Portal offline and no new data")
+                        return data
 
-            # Login if session expired
-            if self._webuser and self._webuser.session_expired:
-                _LOGGER.debug("Session expired, re-authenticating")
-                await self._webuser.login()
+                # Login if session expired
+                if self._webuser and self._webuser.session_expired:
+                    _LOGGER.debug("Session expired, re-authenticating")
+                    await self._webuser.login()
 
-            # Fetch contract hierarchy
-            if self._webuser:
-                await self._webuser.get_info()
-                await self._webuser.fetch_customers_info()
+                # Fetch contract hierarchy
+                if self._webuser:
+                    await self._webuser.get_info()
+                    await self._webuser.fetch_customers_info()
 
-                self._customer = self._webuser.get_customer(self._customer_id)
-                await self._customer.get_info()
+                    self._customer = self._webuser.get_customer(self._customer_id)
+                    await self._customer.get_info()
 
-                self._account = self._customer.get_account(self._account_id)
-                self._contract = self._account.get_contract(self._contract_id)
+                    self._account = self._customer.get_account(self._account_id)
+                    self._contract = self._account.get_contract(self._contract_id)
 
-                # Fetch period data
-                await self._contract.get_periods_info()
+                    # Fetch period data
+                    await self._contract.get_periods_info()
 
-                # Fetch outages
-                await self._contract.refresh_outages()
+                    # Fetch outages
+                    await self._contract.refresh_outages()
 
-                # Rate-specific data fetching
-                if self.rate == "D" and self.rate_option == "CPC":
-                    # Winter Credits
-                    contract_dcpc = self._contract
-                    if isinstance(contract_dcpc, ContractDCPC):
-                        contract_dcpc.set_preheat_duration(self._preheat_duration)
-                        await contract_dcpc.peak_handler.refresh_data()
-                    _LOGGER.debug("[Portal] Fetched DCPC winter credit data")
+                    # Rate-specific data fetching
+                    if self.rate == "D" and self.rate_option == "CPC":
+                        # Winter Credits
+                        contract_dcpc = self._contract
+                        if isinstance(contract_dcpc, ContractDCPC):
+                            contract_dcpc.set_preheat_duration(self._preheat_duration)
+                            await contract_dcpc.peak_handler.refresh_data()
+                        _LOGGER.debug("[Portal] Fetched DCPC winter credit data")
 
-                elif self.rate == "DPC":
-                    # Flex-D
-                    contract_dpc = self._contract
-                    if isinstance(contract_dpc, ContractDPC):
-                        contract_dpc.set_preheat_duration(self._preheat_duration)
-                        await contract_dpc.get_dpc_data()
-                        await contract_dpc.peak_handler.refresh_data()
-                    _LOGGER.debug("[Portal] Fetched DPC data")
+                    elif self.rate == "DPC":
+                        # Flex-D
+                        contract_dpc = self._contract
+                        if isinstance(contract_dpc, ContractDPC):
+                            contract_dpc.set_preheat_duration(self._preheat_duration)
+                            await contract_dpc.get_dpc_data()
+                            await contract_dpc.peak_handler.refresh_data()
+                        _LOGGER.debug("[Portal] Fetched DPC data")
 
-                elif self.rate == "DT":
-                    # Dual Tariff
-                    contract_dt = self._contract
-                    if isinstance(contract_dt, ContractDT):
-                        await contract_dt.get_annual_consumption()
-                    _LOGGER.debug("Fetched DT annual consumption")
+                    elif self.rate == "DT":
+                        # Dual Tariff
+                        contract_dt = self._contract
+                        if isinstance(contract_dt, ContractDT):
+                            await contract_dt.get_annual_consumption()
+                        _LOGGER.debug("Fetched DT annual consumption")
 
-                data["contract"] = self._contract
-                data["account"] = self._account
-                data["customer"] = self._customer
-                data_fetched = True
+                    data["contract"] = self._contract
+                    data["account"] = self._account
+                    data["customer"] = self._customer
+                    data_fetched = True
+                    self._portal_cooldown_until = None
 
-                self._last_portal_update = datetime.datetime.now(ZoneInfo("America/Toronto"))
-                _LOGGER.debug("[Portal] Successfully fetched authenticated contract data")
+                    self._last_portal_update = datetime.datetime.now(
+                        ZoneInfo("America/Toronto")
+                    )
+                    _LOGGER.debug(
+                        "[Portal] Successfully fetched authenticated contract data"
+                    )
 
         except hydroqc.error.HydroQcHTTPError as err:
-            _LOGGER.error("HTTP error fetching Hydro-Québec data: %s", err)
-            raise UpdateFailed(f"Error fetching Hydro-Québec data: {err}") from err
+            is_forbidden = err.status_code == 403 or " - 403" in str(err)
+            if is_forbidden:
+                self._portal_cooldown_until = (
+                    datetime.datetime.now(ZoneInfo("America/Toronto"))
+                    + self._portal_403_cooldown
+                )
+                _LOGGER.warning(
+                    "[Portal] HTTP 403 from Hydro-Québec (%s). "
+                    "Cooling down until %s to avoid retry storms / WAF blocks. "
+                    "Integration stays loaded; portal sensors may be stale.",
+                    err,
+                    self._portal_cooldown_until.isoformat(),
+                )
+                # Keep any hierarchy we already resolved this cycle.
+                if self._contract is not None:
+                    data["contract"] = self._contract
+                    data["account"] = self._account
+                    data["customer"] = self._customer
+                    data_fetched = True
+                portal_soft_failed = True
+            else:
+                _LOGGER.error("HTTP error fetching Hydro-Québec data: %s", err)
+                raise UpdateFailed(f"Error fetching Hydro-Québec data: {err}") from err
         except Exception as err:
             _LOGGER.error("Unexpected error fetching data: %s", err)
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
-        # If no new data was fetched at all, skip sensor update
+        # If no new data was fetched at all, skip sensor update — unless we soft-failed
+        # on 403, in which case returning empty/prior data lets setup succeed instead of
+        # ConfigEntryNotReady hammering maj-session.
         if not data_fetched:
+            if portal_soft_failed:
+                _LOGGER.debug(
+                    "[Portal] Soft-failed with no new data; returning prior/empty payload"
+                )
+                return data
             _LOGGER.debug("No new data fetched, skipping sensor update")
             raise UpdateFailed("No new data available")
 

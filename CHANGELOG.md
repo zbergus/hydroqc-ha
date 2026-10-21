@@ -7,6 +7,7 @@
 ### Corrigé
 
 - Connexion en mode portail : « Échec de connexion à Hydro-Québec » après une connexion réussie pour certains comptes, notamment avec un nom accentué. Le jeton d'identité est maintenant décodé en base64url, comme le prévoit la norme JWT (correctif temporaire de Hydro-Quebec-API-Wrapper 4.2.6)
+- Erreurs HTTP 403 sur `maj-session` : une seule nouvelle tentative après re-login (comportement de session web inchangé côté lib), puis cooldown de 60 minutes côté coordinateur pour éviter les boucles `ConfigEntryNotReady` qui martèlent le portail pendant les maintenances (voir documentation HydroQC Troubleshooting)
 
 ### Retiré
 
