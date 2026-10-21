@@ -49,6 +49,40 @@ class StatisticsManager:
         self._get_statistic_id = get_statistic_id_func
         self._contract_name = contract_name
 
+    def get_cost_statistic_id(self) -> str:
+        """Return the external statistic id used for Energy dashboard costs."""
+        energy_id = self._get_statistic_id("total")
+        if energy_id.endswith("_hourly_consumption"):
+            return energy_id[: -len("_hourly_consumption")] + "_hourly_cost"
+        return f"{energy_id}_cost"
+
+    def get_kwh_price(self) -> float:
+        """Resolve CAD/kWh for cost statistics (contract mean, then sensor, then fallback)."""
+        if self._contract is not None:
+            raw = getattr(self._contract, "cp_kwh_cost_mean", None)
+            if raw is not None:
+                try:
+                    price = float(raw)
+                    if price > 0:
+                        return price
+                except (TypeError, ValueError):
+                    pass
+
+        # Prefer the integration's average-cost sensor when available
+        from homeassistant.util import slugify
+
+        sensor_id = f"sensor.hydro_quebec_{slugify(self._contract_name)}_average_kwh_cost"
+        state = self.hass.states.get(sensor_id)
+        if state is not None and state.state not in {"unknown", "unavailable"}:
+            try:
+                price = float(state.state)
+                if price > 0:
+                    return price
+            except (TypeError, ValueError):
+                pass
+
+        return 0.11
+
     async def determine_sync_start_date(
         self,
     ) -> tuple[bool, datetime.date | None]:
@@ -317,6 +351,105 @@ class StatisticsManager:
             "name": display_name,
         }
 
+    def build_cost_statistics_metadata(self) -> dict[str, Any]:
+        """Build metadata for Energy dashboard cost statistics (CAD)."""
+        return {
+            "source": "hydroqc",
+            "statistic_id": self.get_cost_statistic_id(),
+            "unit_of_measurement": "CAD",
+            "has_mean": False,
+            "has_sum": True,
+            "mean_type": StatisticMeanType.NONE,
+            "name": f"{self._contract_name.title()} Hourly Consumption Cost",
+        }
+
+    async def get_base_cost_sum(self, reference_date: datetime.date) -> float:
+        """Get the last cumulative CAD sum for cost statistics."""
+        statistic_id = self.get_cost_statistic_id()
+        tz = zoneinfo.ZoneInfo("America/Toronto")
+
+        for i in range(30):
+            current_date = reference_date - datetime.timedelta(days=i)
+            start_datetime = datetime.datetime.combine(current_date, datetime.time.min).replace(
+                tzinfo=tz
+            )
+            end_datetime = datetime.datetime.combine(current_date, datetime.time.max).replace(
+                tzinfo=tz
+            )
+            try:
+                last_stats = await get_instance(self.hass).async_add_executor_job(
+                    statistics.statistics_during_period,
+                    self.hass,
+                    start_datetime,
+                    end_datetime,
+                    {statistic_id},
+                    "hour",
+                    None,
+                    {"sum"},
+                )
+                if last_stats and statistic_id in last_stats and last_stats[statistic_id]:
+                    base_sum = last_stats[statistic_id][-1]["sum"]
+                    return float(base_sum) if base_sum is not None else 0.0
+            except Exception as err:
+                _LOGGER.debug(
+                    "No previous cost statistics found for %s on %s: %s",
+                    statistic_id,
+                    current_date,
+                    err,
+                )
+        return 0.0
+
+    async def import_cost_statistics_from_energy(
+        self,
+        energy_stats: list[dict[str, Any]],
+        reference_date: datetime.date,
+    ) -> None:
+        """Derive and import CAD cost statistics from hourly energy stats.
+
+        Uses the current average $/kWh as an estimate (tiered historical rates are
+        not available hour-by-hour from the portal).
+        """
+        if not energy_stats:
+            return
+
+        price = self.get_kwh_price()
+        yesterday = reference_date - datetime.timedelta(days=1)
+        cumulative_sum = await self.get_base_cost_sum(yesterday)
+        cost_stats: list[dict[str, Any]] = []
+
+        for stat in energy_stats:
+            kwh = float(stat.get("state") or 0.0)
+            cost = round(kwh * price, 4)
+            cumulative_sum = round(cumulative_sum + cost, 4)
+            cost_stats.append(
+                {
+                    "start": stat["start"],
+                    "state": cost,
+                    "sum": cumulative_sum,
+                }
+            )
+
+        metadata = self.build_cost_statistics_metadata()
+        batch_size = 250
+        for start_idx in range(0, len(cost_stats), batch_size):
+            batch = cost_stats[start_idx : start_idx + batch_size]
+            await get_instance(self.hass).async_add_executor_job(
+                statistics.async_add_external_statistics,
+                self.hass,
+                metadata,
+                batch,
+            )
+            if start_idx + batch_size < len(cost_stats):
+                await asyncio.sleep(0.5)
+
+        _LOGGER.info(
+            "Imported %d hourly cost statistics for %s (price=%.4f CAD/kWh, sum=%.2f CAD)",
+            len(cost_stats),
+            reference_date,
+            price,
+            cumulative_sum,
+        )
+
     async def get_base_sum(self, consumption_type: str, reference_date: datetime.date) -> float:
         """Get the last cumulative sum for a consumption type.
 
@@ -450,3 +583,7 @@ class StatisticsManager:
                     current_date,
                     cumulative_sum,
                 )
+
+                # Energy dashboard requires a matching external cost statistic
+                if consumption_type == "total":
+                    await self.import_cost_statistics_from_energy(stats_list, current_date)

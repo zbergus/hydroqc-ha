@@ -10,6 +10,11 @@
 
 ---
 
+## [0.7.3] - 2026-10-21
+
+### Added
+- External cost statistics (`hydroqc:<contract>_hourly_cost`) derived from hourly kWh × average CAD/kWh, so the Energy dashboard can track grid cost with external consumption stats.
+
 ## [0.7.2] - 2026-10-21
 
 ### Fixed

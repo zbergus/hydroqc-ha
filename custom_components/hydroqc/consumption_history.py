@@ -568,6 +568,11 @@ class ConsumptionHistoryImporter:
                 cumulative_sum,
             )
 
+            if consumption_type == "total":
+                await self._statistics_manager.import_cost_statistics_from_energy(
+                    stats_list, first_stat_date
+                )
+
             # Delay between consumption types to allow DB commits
             if consumption_type != consumption_types[-1]:  # Don't delay after last type
                 await asyncio.sleep(DELAY_BETWEEN_TYPES)
