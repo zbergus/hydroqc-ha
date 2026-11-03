@@ -364,6 +364,7 @@ def statistics_metadata() -> dict[str, Any]:
         "has_sum": True,
         "mean_type": StatisticMeanType.NONE,
         "name": "Total Hourly Consumption",
+        "unit_class": "energy",
     }
 
 

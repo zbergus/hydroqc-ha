@@ -13,6 +13,11 @@
 
 ---
 
+## [0.8.2] - 2026-11-03
+
+### Fixed
+- Explicitly pass `unit_class` (`"energy"` for kWh, `None` for CAD) in `async_add_external_statistics` metadata to prevent `MissingIntegrationFrame` exception during CSV history import.
+
 ## [0.8.1] - 2026-11-03
 
 ### Added

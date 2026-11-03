@@ -350,6 +350,7 @@ class StatisticsManager:
             "has_sum": True,
             "mean_type": StatisticMeanType.NONE,
             "name": display_name,
+            "unit_class": "energy",
         }
 
     def build_cost_statistics_metadata(self) -> dict[str, Any]:
@@ -362,6 +363,7 @@ class StatisticsManager:
             "has_sum": True,
             "mean_type": StatisticMeanType.NONE,
             "name": f"{self._contract_name.title()} Hourly Consumption Cost",
+            "unit_class": None,
         }
 
     async def get_base_cost_sum(self, reference_date: datetime.date) -> float:
