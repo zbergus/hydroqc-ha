@@ -115,6 +115,11 @@ class HydroQcDataCoordinator(
         self._last_portal_update: datetime.datetime | None = None
         self._last_consumption_sync: datetime.datetime | None = None
 
+        # After a portal HTTP 403 (seen during Hydro-Québec overnight maintenance),
+        # back off so ConfigEntryNotReady / scheduled retries do not hammer the portal.
+        self._portal_cooldown_until: datetime.datetime | None = None
+        self._portal_403_cooldown = datetime.timedelta(minutes=60)
+
         # Track critical peak events signature for calendar sync optimization
         # Using signature instead of count to detect additions, removals, and time changes
         self._last_critical_events_signature: str = ""
@@ -582,6 +587,19 @@ class HydroQcDataCoordinator(
                 raise UpdateFailed("Hydro-Québec asks for an e-mail verification code")
             return data
 
+        if (
+            portal_user
+            and self._portal_cooldown_until is not None
+            and datetime.datetime.now(ZoneInfo("America/Toronto")) < self._portal_cooldown_until
+        ):
+            # Keep the integration loaded with the data we already have; sensors
+            # may be stale until the cooldown ends.
+            _LOGGER.debug(
+                "[Portal] Skipping fetch; cooldown until %s",
+                self._portal_cooldown_until.isoformat(),
+            )
+            return data
+
         try:
             # Check portal status before attempting updates
             if portal_user:
@@ -654,6 +672,7 @@ class HydroQcDataCoordinator(
                 data["account"] = self._account
                 data["customer"] = self._customer
                 data_fetched = True
+                self._portal_cooldown_until = None
 
                 self._last_portal_update = datetime.datetime.now(ZoneInfo("America/Toronto"))
                 _LOGGER.debug("[Portal] Successfully fetched authenticated contract data")
@@ -669,6 +688,19 @@ class HydroQcDataCoordinator(
                 "the integration to enter it"
             ) from err
         except hydroqc.error.HydroQcHTTPError as err:
+            if err.status_code == 403 or " - 403" in str(err):
+                self._portal_cooldown_until = (
+                    datetime.datetime.now(ZoneInfo("America/Toronto")) + self._portal_403_cooldown
+                )
+                _LOGGER.warning(
+                    "[Portal] HTTP 403 from Hydro-Québec (%s). Cooling down until %s; "
+                    "the integration stays loaded and portal sensors may be stale.",
+                    err,
+                    self._portal_cooldown_until.isoformat(),
+                )
+                # Soft-fail: returning data (instead of UpdateFailed) lets setup
+                # succeed rather than ConfigEntryNotReady retrying the portal.
+                return data
             _LOGGER.error("HTTP error fetching Hydro-Québec data: %s", err)
             raise UpdateFailed(f"Error fetching Hydro-Québec data: {err}") from err
         except Exception as err:

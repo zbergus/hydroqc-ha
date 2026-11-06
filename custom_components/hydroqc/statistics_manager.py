@@ -13,6 +13,7 @@ from homeassistant.components.recorder import statistics
 from homeassistant.components.recorder.models import StatisticMeanType
 from homeassistant.helpers.recorder import get_instance
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import slugify
 
 from hydroqc.error import HydroQcHTTPError
 
@@ -70,8 +71,6 @@ class StatisticsManager:
                     pass
 
         # Prefer the integration's average-cost sensor when available
-        from homeassistant.util import slugify
-
         sensor_id = f"sensor.hydro_quebec_{slugify(self._contract_name)}_average_kwh_cost"
         state = self.hass.states.get(sensor_id)
         if state is not None and state.state not in {"unknown", "unavailable"}:
@@ -363,6 +362,7 @@ class StatisticsManager:
             "has_sum": True,
             "mean_type": StatisticMeanType.NONE,
             "name": f"{self._contract_name.title()} Hourly Consumption Cost",
+            "unit_class": None,
         }
 
     async def get_base_cost_sum(self, reference_date: datetime.date) -> float:

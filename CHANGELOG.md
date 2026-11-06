@@ -1,3 +1,19 @@
+## [0.9.1] - 2026-11-06
+
+Version du fork zbergus/hydroqc-ha, basée sur 0.9.0.
+
+### Ajouté
+
+- **Statistiques de coût horaires (CAD)** pour le tableau de bord Énergie : `hydroqc:<contrat>_hourly_cost`, dérivées de la consommation horaire et du coût moyen actuel par kWh (estimation).
+- Guide d'automatisation du pré-chauffage (`docs/preheat_automation_recipe.md`).
+
+### Corrigé
+
+- **Connexion échouée pour certains comptes** (notamment avec un nom accentué) : le jeton d'identité est décodé en base64url, comme le prévoit la norme JWT (correctif temporaire de Hydro-Quebec-API-Wrapper 4.3.1, qui utilise encore `b64decode`).
+- **HTTP 403 du portail (maintenances de nuit)** : un 403 déclenche une pause de 60 minutes sans appel au portail, et l'intégration reste chargée au lieu de relancer l'installation en boucle. Les autres erreurs HTTP gardent le comportement de 0.9.0.
+
+---
+
 ## [0.9.0] - 2026-11-05
 
 ### Ajouté

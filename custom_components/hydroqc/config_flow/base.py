@@ -55,8 +55,8 @@ from ..const import (
     DEFAULT_PREHEAT_DURATION,
     DOMAIN,
 )
-from ..session import async_save_session as save_session_state, stage_pending_session
 from ..hydroqc_patches import apply_patches
+from ..session import async_save_session as save_session_state, stage_pending_session
 from .helpers import SECTOR_MAPPING, fetch_available_sectors, fetch_offers_for_sector
 from .options import HydroQcOptionsFlow
 
