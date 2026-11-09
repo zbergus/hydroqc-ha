@@ -1,12 +1,12 @@
-## [Non publié]
+## [0.9.3] - 2026-11-14
 
-### Ajouté
+### Added
+- Rebased on upstream v0.9.2 (mobile B2C client with 90-day auto-renewing session, session persistence in `.storage`, deterministic scheduling offsets, portal maintenance reporting).
+- External cost statistics (`hydroqc:<contract>_hourly_cost`) derived from hourly kWh × average CAD/kWh, so the Energy dashboard can track grid cost with external consumption stats.
+- Guide on automating pre-peak preheating with calendar offsets (`docs/preheat_automation_recipe.md`).
 
-### Modifié
-
-### Corrigé
-
-### Retiré
+### Fixed
+- Base64url padding decode fix for JWT ID tokens (`HydroClient.get_token_data`).
 
 ---
 
