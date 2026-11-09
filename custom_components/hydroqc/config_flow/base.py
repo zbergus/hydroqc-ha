@@ -56,11 +56,14 @@ from ..const import (
     DEFAULT_PREHEAT_DURATION,
     DOMAIN,
 )
+from ..hydroqc_patches import apply_patches
 from ..session import async_save_session as save_session_state, stage_pending_session
 from .helpers import SECTOR_MAPPING, fetch_available_sectors, fetch_offers_for_sector
 from .options import HydroQcOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
+
+apply_patches()
 
 # Where the login was started from, so the verification step can hand control
 # back to the right step once the portal accepts the account.
