@@ -1,14 +1,15 @@
-## [Non publié]
+## [0.9.2] - 2026-11-09
 
-### Ajouté
+### Added
+- Rebased on upstream v0.9.1 (mobile B2C client with 90-day auto-renewing session, session persistence in `.storage`, deterministic scheduling offsets).
+- External cost statistics (`hydroqc:<contract>_hourly_cost`) derived from hourly kWh × average CAD/kWh, so the Energy dashboard can track grid cost with external consumption stats.
+- Guide on automating pre-peak preheating with calendar offsets (`docs/preheat_automation_recipe.md`).
 
-- **Choix du client de connexion** : les options ont une section repliable « Avancé » pour choisir le client de connexion Hydro-Québec. L'application mobile, par défaut, garde la session 90 jours et la renouvelle automatiquement. Le portail web demande un nouveau code de vérification chaque jour. Changer de client recharge l'intégration et demande un nouveau code. Nécessite une version de hydroqc qui accepte `auth_client`, sinon l'intégration reste sur le portail web et l'indique dans le journal.
+### Fixed
+- Base64url padding decode fix for JWT ID tokens (`HydroClient.get_token_data`).
 
-### Modifié
-
-### Corrigé
-
-### Retiré
+### Removed
+- Retired obsolete `maj-session 403` / cookie clearing monkeypatch (superseded by upstream 0.9.1 mobile client and session store architecture).
 
 ---
 
