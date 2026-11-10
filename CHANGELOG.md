@@ -1,3 +1,10 @@
+## [0.9.3] - 2026-11-10
+
+### Fixed
+- OpenData-only setups no longer fail during the off-season with "No new data available" when winter peak data is absent (rebased on upstream `main` after v0.9.1, upstream #163).
+
+---
+
 ## [0.9.2] - 2026-11-09
 
 ### Added
