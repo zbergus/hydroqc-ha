@@ -24,6 +24,11 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Hydro-Québec answers these on resourceObtenirDonneesConsommationHoraires while the
+# hourly buckets of the requested day are not published yet (publish lag, not a fault).
+# Any other status - 5xx, 401/403, 429, ... - stays an error.
+_NOT_PUBLISHED_STATUSES = frozenset({400, 404})
+
 
 class StatisticsManager:
     """Manages statistics queries and hourly consumption imports."""
@@ -288,11 +293,24 @@ class StatisticsManager:
                     await asyncio.sleep(0)
 
                 except HydroQcHTTPError as err:
-                    # Expected error for dates without data (e.g., today, future dates)
                     if "No data available for date" in str(err):
+                        # Expected error for dates without data (e.g., today, future dates)
                         _LOGGER.debug(
                             "No consumption data available for %s (data not yet published by HQ)",
                             current_date,
+                        )
+                    elif err.status_code in _NOT_PUBLISHED_STATUSES:
+                        # Hydro-Québec answers 400 (and 404 for an unknown day) on
+                        # resourceObtenirDonneesConsommationHoraires while the hourly
+                        # buckets of that day are not published yet: this is publish
+                        # lag, not a fault. Keep it out of the error log so only a real
+                        # fault (5xx, auth/rate-limit status, transport or parse error)
+                        # is reported as one.
+                        _LOGGER.warning(
+                            "No consumption data available for %s yet "
+                            "(HTTP %s from HQ, data not yet published by HQ)",
+                            current_date,
+                            err.status_code,
                         )
                     else:
                         _LOGGER.error(
