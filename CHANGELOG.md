@@ -1,3 +1,10 @@
+## [0.9.4] - 2026-11-14
+
+### Changed
+- Version bump only: re-publishes the rebased 0.9.3 build (upstream 0.9.2 base, CAD cost statistics, JWT base64url fix) so Home Assistant offers a regular update to installs stuck on the pre-rebase 0.9.3.
+
+---
+
 ## [0.9.3] - 2026-11-14
 
 ### Added
